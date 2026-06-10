@@ -37,6 +37,13 @@ class ReportProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      // 0. Validar que haya al menos una imagen y que las coordenadas sean válidas
+      if (images.isEmpty || latitude == null || longitude == null) {
+        return null;
+      }
+      latitude = double.parse(latitude.toStringAsFixed(10));
+      longitude = double.parse(longitude.toStringAsFixed(10));
+
       // 1. Crear el reporte
       final report = await _reportService.createReport(
         latitude: latitude,
