@@ -17,7 +17,7 @@ class ReportProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _recentReports = await _reportService.getRecentReports(limit: 2);
+      _recentReports = await _reportService.getRecentReports(limit: 20);
     } catch (e) {
       print("Error fetching recent reports: $e");
     } finally {
