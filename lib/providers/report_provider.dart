@@ -6,11 +6,13 @@ import '../services/report_service.dart';
 class ReportProvider with ChangeNotifier {
   final ReportService _reportService;
   List<ReportModel> _recentReports = [];
+  List<ReportCoordinate> _reportCoordinates = [];
   bool _isLoading = false;
 
   ReportProvider(this._reportService);
 
   List<ReportModel> get recentReports => _recentReports;
+  List<ReportCoordinate> get reportCoordinates => _reportCoordinates;
   bool get isLoading => _isLoading;
 
   Future<void> fetchRecentReports() async {
@@ -20,6 +22,33 @@ class ReportProvider with ChangeNotifier {
       _recentReports = await _reportService.getRecentReports(limit: 20);
     } catch (e) {
       print("Error fetching recent reports: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchReportCoordinates() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _reportCoordinates = await _reportService.getReportCoordinates();
+    } catch (e) {
+      print("Error fetching report coordinates: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<ReportModel?> getReportDetail(String id) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      return await _reportService.getReportDetail(id);
+    } catch (e) {
+      print("Error fetching report detail: $e");
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -37,14 +66,6 @@ class ReportProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      // 0. Validar que haya al menos una imagen y que las coordenadas sean válidas
-      if (images.isEmpty || latitude == null || longitude == null) {
-        return null;
-      }
-      latitude = double.parse(latitude.toStringAsFixed(10));
-      longitude = double.parse(longitude.toStringAsFixed(10));
-
-      // 1. Crear el reporte
       final report = await _reportService.createReport(
         latitude: latitude,
         longitude: longitude,
@@ -53,21 +74,67 @@ class ReportProvider with ChangeNotifier {
         description: description,
       );
 
-      // 2. Subir múltiples imágenes asociadas al ID del reporte
       for (var image in images) {
         try {
           await _reportService.uploadMedia(report.id, image);
         } catch (e) {
           print("Error uploading image: $e");
-          // Podríamos continuar con las demás imágenes o manejar el error
         }
       }
 
       await fetchRecentReports();
+      await fetchReportCoordinates();
       return report;
     } catch (e) {
       print("Error creating report: $e");
       return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateReport(String id, {
+    double? latitude,
+    double? longitude,
+    String? locationText,
+    String? reportType,
+    String? description,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _reportService.updateReport(id,
+        latitude: latitude,
+        longitude: longitude,
+        locationText: locationText,
+        reportType: reportType,
+        description: description,
+      );
+      await fetchRecentReports();
+      await fetchReportCoordinates();
+      return true;
+    } catch (e) {
+      print("Error updating report: $e");
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteReport(String id) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _reportService.deleteReport(id);
+      _recentReports.removeWhere((r) => r.id == id);
+      _reportCoordinates.removeWhere((c) => c.id == id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print("Error deleting report: $e");
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
