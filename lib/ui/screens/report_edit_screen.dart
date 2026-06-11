@@ -146,6 +146,7 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
                                 backgroundColor: AppConfig.primaryBlue,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
+                                minimumSize: const Size(0, 40),
                               ),
                             ),
                           ),
@@ -169,7 +170,7 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 2.2,
+                      childAspectRatio: 3,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),
@@ -178,28 +179,21 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
                       final type = _reportTypes[index];
                       final isSelected = _selectedType == type['value'];
                       return InkWell(
-                        onTap: () => setState(() => _selectedType = type['value']!),
+                        onTap: isLoading ? null : () => setState(() => _selectedType = type['value']!),
                         child: Container(
                           decoration: BoxDecoration(
-                            border: Border.all(color: isSelected ? AppConfig.primaryBlue : AppConfig.cardBorder, width: 2),
-                            borderRadius: BorderRadius.circular(12),
-                            color: isSelected ? AppConfig.primaryBlue.withOpacity(0.05) : Colors.white,
+                            color: isSelected ? AppConfig.primaryBlue : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: isSelected ? AppConfig.primaryBlue : AppConfig.cardBorder),
                           ),
-                          child: Stack(
-                            children: [
-                              if (isSelected)
-                                const Positioned(top: 8, right: 8, child: Icon(Icons.check_circle, color: AppConfig.primaryBlue, size: 18)),
-                              Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(_getIconForType(type['value']!), color: isSelected ? AppConfig.primaryBlue : Colors.grey),
-                                    const SizedBox(height: 4),
-                                    Text(type['label']!, style: TextStyle(color: isSelected ? AppConfig.primaryBlue : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                                  ],
-                                ),
+                          child: Center(
+                            child: Text(
+                              type['label']!,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       );

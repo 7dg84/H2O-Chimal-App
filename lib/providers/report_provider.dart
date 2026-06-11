@@ -1,17 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/report_model.dart';
+import '../models/media_model.dart';
 import '../services/report_service.dart';
 
 class ReportProvider with ChangeNotifier {
   final ReportService _reportService;
   List<ReportModel> _recentReports = [];
+  List<ReportModel> _allReports = [];
   List<ReportCoordinate> _reportCoordinates = [];
   bool _isLoading = false;
 
   ReportProvider(this._reportService);
 
   List<ReportModel> get recentReports => _recentReports;
+  List<ReportModel> get allReports => _allReports;
   List<ReportCoordinate> get reportCoordinates => _reportCoordinates;
   bool get isLoading => _isLoading;
 
@@ -19,9 +22,22 @@ class ReportProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _recentReports = await _reportService.getRecentReports(limit: 20);
+      _recentReports = await _reportService.getRecentReports(limit: 2);
     } catch (e) {
       print("Error fetching recent reports: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchAllReports() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _allReports = await _reportService.getAllReports();
+    } catch (e) {
+      print("Error fetching all reports: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -43,7 +59,8 @@ class ReportProvider with ChangeNotifier {
 
   Future<ReportModel?> getReportDetail(String id) async {
     _isLoading = true;
-    notifyListeners();
+    // Usamos microtask para evitar el error de notifyListeners durante el build
+    Future.microtask(() => notifyListeners());
     try {
       return await _reportService.getReportDetail(id);
     } catch (e) {
@@ -53,6 +70,26 @@ class ReportProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<MediaModel?> getMediaDetail(String mediaId) async {
+    try {
+      return await _reportService.getMedia(mediaId);
+    } catch (e) {
+      print("Error fetching media detail: $e");
+      return null;
+    }
+  }
+
+  Future<List<MediaModel>> getReportMedia(List<String> mediaIds) async {
+    List<MediaModel> mediaList = [];
+    for (var id in mediaIds) {
+      final media = await getMediaDetail(id);
+      if (media != null) {
+        mediaList.add(media);
+      }
+    }
+    return mediaList;
   }
 
   Future<ReportModel?> createReport({
@@ -65,10 +102,15 @@ class ReportProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
+    
+    // Limpiar coordenadas a 10 decimales
+    double cleanLat = double.parse(latitude.toStringAsFixed(10));
+    double cleanLong = double.parse(longitude.toStringAsFixed(10));
+    
     try {
       final report = await _reportService.createReport(
-        latitude: latitude,
-        longitude: longitude,
+        latitude: cleanLat,
+        longitude: cleanLong,
         locationText: locationText,
         reportType: reportType,
         description: description,
@@ -95,18 +137,22 @@ class ReportProvider with ChangeNotifier {
   }
 
   Future<bool> updateReport(String id, {
-    double? latitude,
-    double? longitude,
-    String? locationText,
-    String? reportType,
-    String? description,
+    required double latitude,
+    required double longitude,
+    required String locationText,
+    required String reportType,
+    required String description,
   }) async {
     _isLoading = true;
     notifyListeners();
+    
+    double cleanLat = double.parse(latitude.toStringAsFixed(10));
+    double cleanLong = double.parse(longitude.toStringAsFixed(10));
+    
     try {
       await _reportService.updateReport(id,
-        latitude: latitude,
-        longitude: longitude,
+        latitude: cleanLat,
+        longitude: cleanLong,
         locationText: locationText,
         reportType: reportType,
         description: description,

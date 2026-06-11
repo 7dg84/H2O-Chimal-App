@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../core/config.dart';
 import '../../models/report_model.dart';
+import '../../models/media_model.dart';
 import '../../providers/report_provider.dart';
 
 class ReportDetailScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class ReportDetailScreen extends StatefulWidget {
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
   ReportModel? _report;
+  List<MediaModel> _mediaList = [];
   bool _isLoading = true;
 
   @override
@@ -27,24 +29,36 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   }
 
   Future<void> _loadReport() async {
-    final report = await context.read<ReportProvider>().getReportDetail(widget.reportId);
-    if (mounted) {
-      setState(() {
-        _report = report;
-        _isLoading = false;
-      });
+    final reportProvider = context.read<ReportProvider>();
+    final report = await reportProvider.getReportDetail(widget.reportId);
+    
+    if (report != null) {
+      final media = await reportProvider.getReportMedia(report.media);
+      if (mounted) {
+        setState(() {
+          _report = report;
+          _mediaList = media;
+          _isLoading = false;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _confirmDelete() {
     showDialog(
-      context: context, // Contexto de la pantalla
-      builder: (dialogContext) => AlertDialog( // Renombramos a 'dialogContext'
+      context: context,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('¿Eliminar Reporte?'),
         content: const Text('Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext), // Usamos dialogContext
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           TextButton(
@@ -57,7 +71,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
               // 3. Si tuvo éxito y la pantalla sigue montada, la cerramos
               if (success && mounted) {
-                Navigator.pop(context); // Este 'context' es el de la pantalla principal
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Reporte eliminado con éxito')),
                 );
@@ -136,7 +150,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   Row(
                     children: [
                       Expanded(child: _buildDetailItem('TIPO', _report!.reportType)),
-                      Expanded(child: _buildDetailItem('URGENCIA', 'Media')), // Placeholder
+                      Expanded(child: _buildDetailItem('TIEMPO ESTIMADO', _report!.estimatedTime ?? '---')),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -185,23 +199,28 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            if (_report!.media.isNotEmpty)
+            if (_mediaList.isNotEmpty)
               _buildSection(
                 title: 'EVIDENCIA FOTOGRÁFICA',
                 icon: Icons.camera_alt_outlined,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    '${AppConfig.apiBaseUrl}/media/${_report!.media.first}/',
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 200,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                child: Column(
+                  children: _mediaList.map((media) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        media.presignedUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 200,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                        ),
+                      ),
                     ),
-                  ),
+                  )).toList(),
                 ),
               ),
             const SizedBox(height: 32),
