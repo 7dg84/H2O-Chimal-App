@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/config.dart';
 import '../../models/document_model.dart';
 import '../../models/tramite_model.dart';
@@ -26,7 +27,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   }
 
   Future<void> _loadTramite() async {
-    final tramite = await context.read<TramiteProvider>().getTramiteDetail(widget.tramiteId);
+    final tramite = await context.read<TramiteProvider>().getTramiteDetail(
+        widget.tramiteId);
     if (mounted) {
       setState(() {
         _tramite = tramite;
@@ -54,7 +56,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
         title: const Text('Gestión de Agua'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: AppConfig.primaryBlue),
+            icon: const Icon(
+                Icons.notifications_none, color: AppConfig.primaryBlue),
             onPressed: () {},
           ),
         ],
@@ -125,7 +128,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF7ED),
                   borderRadius: BorderRadius.circular(20),
@@ -174,11 +178,14 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.black87),
+              const Icon(Icons.calendar_today_outlined, size: 18,
+                  color: Colors.black87),
               const SizedBox(width: 8),
               Text(
-                DateFormat('dd \'de\' MMMM, yyyy', 'es').format(_tramite!.createdAt),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                DateFormat('dd \'de\' MMMM, yyyy', 'es').format(
+                    _tramite!.createdAt),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -231,10 +238,12 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isDone ? AppConfig.primaryBlue : const Color(0xFFCBD5E1),
-            border: Border.all(color: isDone ? AppConfig.primaryBlue : Colors.white, width: 2),
+            border: Border.all(
+                color: isDone ? AppConfig.primaryBlue : Colors.white, width: 2),
           ),
           child: isCurrent
-              ? const Icon(Icons.radio_button_checked, size: 18, color: Colors.white)
+              ? const Icon(
+              Icons.radio_button_checked, size: 18, color: Colors.white)
               : isDone
               ? const Icon(Icons.check, size: 18, color: Colors.white)
               : const Icon(Icons.more_horiz, size: 18, color: Colors.white),
@@ -273,7 +282,9 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
             SizedBox(width: 12),
             Text(
               'Notas del Administrador',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppConfig.primaryBlue),
+              style: TextStyle(fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppConfig.primaryBlue),
             ),
           ],
         ),
@@ -296,7 +307,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
                 children: [
                   const Text(
                     'Administración H2O',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: AppConfig.primaryBlue),
+                    style: TextStyle(fontWeight: FontWeight.bold,
+                        color: AppConfig.primaryBlue),
                   ),
                   Text(
                     'Actualizado',
@@ -306,8 +318,11 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                _tramite!.notes==null || _tramite!.notes!.isEmpty ? 'No hay notas adicionales del administrador en este momento.' : _tramite!.notes!,
-                style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87),
+                _tramite!.notes == null || _tramite!.notes!.isEmpty
+                    ? 'No hay notas adicionales del administrador en este momento.'
+                    : _tramite!.notes!,
+                style: const TextStyle(
+                    fontSize: 15, height: 1.5, color: Colors.black87),
               ),
               if (_tramite!.documents != null) ...[
                 const SizedBox(height: 16),
@@ -327,21 +342,35 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   }
 
   Widget _buildDocument(TramiteDocumentModel document) {
-    return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(8),
-    border: Border.all(color: const Color(0xFFE2E8F0)),
-    ),
-    child: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-    const Icon(Icons.attachment, size: 16, color: Colors.grey),
-    const SizedBox(width: 8),
-    Text(document.filename, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-    ],
-    ),
+    return InkWell(
+      onTap: () => _downloadDocument(document.id),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+                Icons.attachment, size: 16, color: AppConfig.primaryBlue),
+            const SizedBox(width: 8),
+            Text(
+                document.filename,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  decoration: TextDecoration
+                      .underline, // Sugiere que es un link
+                )
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -351,7 +380,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
+        border: Border.all(
+            color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
       ),
       child: Row(
         children: [
@@ -361,7 +391,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
               color: Color(0xFFE2E8F0),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.support_agent, color: AppConfig.primaryBlue),
+            child: const Icon(
+                Icons.support_agent, color: AppConfig.primaryBlue),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -382,5 +413,36 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _downloadDocument(String documentId) async {
+    try {
+// Opcional: Mostrar un indicador de carga pequeño
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preparando descarga...'),
+            duration: Duration(seconds: 1)),
+      );
+
+      final docDetail = await context.read<TramiteProvider>().getDocumentDetail(
+          documentId);
+
+      if (docDetail != null && docDetail.presignedUrl != null) {
+        final Uri url = Uri.parse(docDetail.presignedUrl!);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          throw 'No se pudo abrir el enlace de descarga';
+        }
+      } else {
+        throw 'No se encontró la URL del documento';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al descargar: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
