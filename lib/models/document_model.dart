@@ -10,7 +10,7 @@ class TramiteDocumentModel {
   factory TramiteDocumentModel.fromJson(Map<String, dynamic> json) {
     return TramiteDocumentModel(
       id: json['id'],
-      name: json['name'],
+      name: json['filename'],
     );
   }
 
