@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/config.dart';
+import '../../models/document_model.dart';
 import '../../models/tramite_model.dart';
 import '../../providers/tramite_provider.dart';
 
@@ -305,32 +306,37 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                _tramite!.notes ?? 'No hay notas adicionales del administrador en este momento.',
+                _tramite!.notes==null || _tramite!.notes!.isEmpty ? 'No hay notas adicionales del administrador en este momento.' : _tramite!.notes!,
                 style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87),
               ),
-              if (_tramite!.notes != null) ...[
+              if (_tramite!.documents != null) ...[
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.attachment, size: 16, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text('documento_adjunto.pdf', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
+
+
               ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDocument(TramiteDocumentModel document) {
+    return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: const Color(0xFFE2E8F0)),
+    ),
+    child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+    const Icon(Icons.attachment, size: 16, color: Colors.grey),
+    const SizedBox(width: 8),
+    Text(document.filename, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+    ],
+    ),
     );
   }
 
