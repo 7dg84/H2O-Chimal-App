@@ -311,8 +311,13 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
               ),
               if (_tramite!.documents != null) ...[
                 const SizedBox(height: 16),
-
-
+                Wrap(
+                  spacing: 8, // Espacio horizontal entre documentos
+                  runSpacing: 8, // Espacio vertical entre líneas
+                  children: _tramite!.documents!
+                      .map((document) => _buildDocument(document))
+                      .toList(),
+                ),
               ],
             ],
           ),
