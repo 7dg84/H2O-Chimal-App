@@ -179,7 +179,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         ),
                         children: [
                           TileLayer(
-                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            urlTemplate: AppConfig.urlTemplate,
+                            userAgentPackageName: AppConfig.userAgentPackageName,
                           ),
                           MarkerLayer(
                             markers: [

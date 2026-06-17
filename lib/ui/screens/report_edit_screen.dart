@@ -122,7 +122,10 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
                               initialZoom: 15,
                             ),
                             children: [
-                              TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                              TileLayer(
+                                  urlTemplate: AppConfig.urlTemplate,
+                                  userAgentPackageName: AppConfig.userAgentPackageName,
+                              ),
                               MarkerLayer(
                                 markers: [
                                   Marker(
@@ -282,8 +285,8 @@ class __MapPickerDialogState extends State<_MapPickerDialog> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.h2ochimal.app',
+                      urlTemplate: AppConfig.urlTemplate,
+                      userAgentPackageName: AppConfig.userAgentPackageName,
                     ),
                     MarkerLayer(
                       markers: [
