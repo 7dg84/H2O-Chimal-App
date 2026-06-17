@@ -73,4 +73,40 @@ class TramiteProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> deleteTramite(String id) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _tramiteService.deleteTramite(id);
+      await fetchTramites();
+      return true;
+    } catch (e) {
+      print("Error deleting tramite: $e");
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteDocument(String documentId) async {
+    try {
+      await _tramiteService.deleteDocument(documentId);
+      return true;
+    } catch (e) {
+      print("Error deleting document: $e");
+      return false;
+    }
+  }
+
+  Future<bool> uploadAdditionalDocument(String tramiteId, String documentTypeId, File file) async {
+    try {
+      await _tramiteService.uploadDocument(tramiteId, documentTypeId, file);
+      return true;
+    } catch (e) {
+      print("Error uploading document: $e");
+      return false;
+    }
+  }
 }

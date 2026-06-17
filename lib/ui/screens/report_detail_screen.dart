@@ -1,3 +1,5 @@
+import 'package:app/ui/widgets/buttons.dart';
+import 'package:app/ui/widgets/delete_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -51,36 +53,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   }
 
   void _confirmDelete() {
-    showDialog(
+    showDeleteDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Eliminar Reporte?'),
-        content: const Text('Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              // 1. Cerramos el diálogo usando su propio contexto
-              Navigator.pop(dialogContext);
-
-              // 2. Ejecutamos la eliminación usando el contexto de la pantalla ('context')
-              final success = await context.read<ReportProvider>().deleteReport(widget.reportId);
-
-              // 3. Si tuvo éxito y la pantalla sigue montada, la cerramos
-              if (success && mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Reporte eliminado con éxito')),
-                );
-              }
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+        title: '¿Eliminar Reporte?',
+        successMessage: 'Reporte eliminado con éxito',
+        onConfirm: () async {
+          // Retornamos el resultado de la operación
+          return await context.read<ReportProvider>().deleteReport(widget.reportId);
+        }
     );
   }
 
@@ -225,28 +205,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 ),
               ),
             const SizedBox(height: 32),
-            ElevatedButton(
+            EditButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/report-edit', arguments: _report);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppConfig.primaryBlue,
-                side: const BorderSide(color: AppConfig.primaryBlue),
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text('Editar Reporte'),
+                },
+              label: 'Editar Reporte',
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
+            DeleteButton(
               onPressed: _confirmDelete,
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: const Text('Eliminar Reporte', style: TextStyle(color: Colors.red)),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
+              label: 'Eliminar Reporte',
             ),
             const SizedBox(height: 40),
           ],

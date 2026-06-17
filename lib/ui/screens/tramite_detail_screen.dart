@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/config.dart';
 import '../../models/document_model.dart';
 import '../../models/tramite_model.dart';
@@ -27,6 +29,7 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   }
 
   Future<void> _loadTramite() async {
+    setState(() => _isLoading = true);
     final tramite = await context.read<TramiteProvider>().getTramiteDetail(
         widget.tramiteId);
     if (mounted) {
@@ -39,7 +42,7 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading && _tramite == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -54,29 +57,31 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Gestión de Agua'),
-        actions: [
-          IconButton(
-            icon: const Icon(
-                Icons.notifications_none, color: AppConfig.primaryBlue),
-            onPressed: () {},
-          ),
-        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeaderCard(),
-            const SizedBox(height: 24),
-            _buildStatusCard(),
-            const SizedBox(height: 24),
-            _buildAdminNotesSection(),
-            const SizedBox(height: 24),
-            // _buildHelpCard(),
-            // const SizedBox(height: 40),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeaderCard(),
+                const SizedBox(height: 24),
+                _buildStatusCard(),
+                const SizedBox(height: 24),
+                _buildAdminNotesSection(),
+                const SizedBox(height: 24),
+                _buildActionsSection(),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }
@@ -324,11 +329,13 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
                 style: const TextStyle(
                     fontSize: 15, height: 1.5, color: Colors.black87),
               ),
-              if (_tramite!.documents != null) ...[
+              if (_tramite!.documents != null && _tramite!.documents!.isNotEmpty) ...[
                 const SizedBox(height: 16),
+                const Text('Documentos adjuntos:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8, // Espacio horizontal entre documentos
-                  runSpacing: 8, // Espacio vertical entre líneas
+                  spacing: 8,
+                  runSpacing: 8,
                   children: _tramite!.documents!
                       .map((document) => _buildDocument(document))
                       .toList(),
@@ -339,6 +346,231 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildActionsSection() {
+    // Solo permitir acciones si el trámite no está completado
+    bool canEdit = _tramite!.status != TramiteStatus.completado;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Acciones Disponibles',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child:
+            ElevatedButton(
+              onPressed: canEdit ? () => _confirmCancelTramite() : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppConfig.primaryBlue,
+                side: const BorderSide(color: AppConfig.primaryBlue),
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: const Text('Editar Documentos'),
+            ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(child:
+            OutlinedButton.icon(
+              onPressed: canEdit ? () => _confirmCancelTramite() : null,
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              label: const Text('Eliminar Reporte', style: TextStyle(color: Colors.red)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            ),
+              const SizedBox(height: 40),
+            // Expanded(
+            //   child: OutlinedButton.icon(
+            //     onPressed: canEdit ? () => _showEditDocumentsDialog() : null,
+            //     icon: const Icon(Icons.edit_document),
+            //     label: const Text('Editar Documentos'),
+            //     style: OutlinedButton.styleFrom(
+            //       padding: const EdgeInsets.symmetric(vertical: 12),
+            //       side: const BorderSide(color: AppConfig.primaryBlue),
+            //     ),
+            //   ),
+            // ),
+            // const SizedBox(width: 12),
+
+            // Expanded(
+            //   child: OutlinedButton.icon(
+            //     onPressed: canEdit ? () => _confirmCancelTramite() : null,
+            //     icon: const Icon(Icons.cancel_outlined),
+            //     label: const Text('Cancelar Trámite'),
+            //     style: OutlinedButton.styleFrom(
+            //       padding: const EdgeInsets.symmetric(vertical: 12),
+            //       foregroundColor: Colors.red,
+            //       side: const BorderSide(color: Colors.red),
+            //     ),
+            //   ),
+            // ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showEditDocumentsDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Gestionar Documentos',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  if (_tramite!.documents == null || _tramite!.documents!.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: Text('No hay documentos subidos.')),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _tramite!.documents!.length,
+                        itemBuilder: (context, index) {
+                          final doc = _tramite!.documents![index];
+                          return ListTile(
+                            leading: const Icon(Icons.description, color: AppConfig.primaryBlue),
+                            title: Text(doc.filename, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _deleteDocument(doc.id, setModalState),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () => _uploadNewDocument(setModalState),
+                    icon: const Icon(Icons.add_a_photo),
+                    label: const Text('Subir Nuevo Documento'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteDocument(String documentId, StateSetter setModalState) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Eliminar documento?'),
+        content: const Text('Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await context.read<TramiteProvider>().deleteDocument(documentId);
+      if (success) {
+        await _loadTramite();
+        setModalState(() {});
+      }
+    }
+  }
+
+  Future<void> _uploadNewDocument(StateSetter setModalState) async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      // Nota: Aquí necesitaríamos el documentTypeId. Para este ejemplo rápido, 
+      // usaremos uno genérico o pediremos al usuario que lo identifique.
+      // Por ahora, asumiremos que el backend acepta un ID por defecto para adjuntos adicionales.
+      
+      final success = await context.read<TramiteProvider>().uploadAdditionalDocument(
+        _tramite!.id, 
+        'default', // Idealmente obtener de los requisitos del servicio
+        File(image.path)
+      );
+
+      if (success) {
+        await _loadTramite();
+        setModalState(() {});
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Documento subido con éxito')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmCancelTramite() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Cancelar Trámite?'),
+        content: const Text('Se eliminará tu solicitud. Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No, mantener')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await context.read<TramiteProvider>().deleteTramite(_tramite!.id);
+      if (success && mounted) {
+        Navigator.pop(context); // Volver a la lista
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Trámite cancelado con éxito')),
+        );
+      }
+    }
   }
 
   Widget _buildDocument(TramiteDocumentModel document) {
@@ -364,8 +596,7 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: Colors.black87,
-                  decoration: TextDecoration
-                      .underline, // Sugiere que es un link
+                  decoration: TextDecoration.underline,
                 )
             ),
           ],
@@ -374,50 +605,8 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
     );
   }
 
-  Widget _buildHelpCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              color: Color(0xFFE2E8F0),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-                Icons.support_agent, color: AppConfig.primaryBlue),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '¿Necesitas ayuda con este trámite?',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                Text(
-                  'Llama al 800-H2O-CHIMAL',
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _downloadDocument(String documentId) async {
     try {
-// Opcional: Mostrar un indicador de carga pequeño
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preparando descarga...'),
             duration: Duration(seconds: 1)),
