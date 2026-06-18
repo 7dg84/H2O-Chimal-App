@@ -253,15 +253,23 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   Widget _buildDocumentManagementSection() {
     bool canEdit = _tramite!.status == TramiteStatus.creado;
     
+    // OBTENER NOMBRES DE DOCUMENTOS YA SUBIDOS
+    final uploadedTypeNames = _tramite!.documents?.map((doc) => doc.name).toSet() ?? {};
+    
+    // FILTRAR REQUISITOS FALTANTES
+    final missingRequirements = _service?.requirements.where(
+      (req) => !uploadedTypeNames.contains(req.documentTypeName)
+    ).toList() ?? [];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Documentación del Trámite', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         
-        // Documentos actuales (Revisión/Descarga)
+        // 1. Documentos actuales (Revisión/Descarga)
         if (_tramite!.documents != null && _tramite!.documents!.isNotEmpty) ...[
-          const Text('Documentos en revisión:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Text('Archivos subidos actualmente:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 12),
           ..._tramite!.documents!.map((doc) => Container(
             margin: const EdgeInsets.only(bottom: 8),
@@ -279,13 +287,14 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
           const SizedBox(height: 24),
         ],
 
-        // Subida de nuevos documentos (Tarjetas integradas)
-        if (canEdit && _service != null) ...[
-          const Text('Añadir o actualizar documentación:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+        // 2. Subida de requisitos faltantes (SOLO LOS QUE NO ESTÁN ARRIBA)
+        if (canEdit && missingRequirements.isNotEmpty) ...[
+          const Text('Añadir documentación faltante:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 16),
-          ..._service!.requirements.map((req) => RequirementCard(
+          ...missingRequirements.map((req) => RequirementCard(
             requirement: req,
             pickedFile: _newFiles[req.documentTypeId],
+
             onPickFile: () async {
               final file = await FileHelper.pickDocument(context);
               if (file != null) setState(() => _newFiles[req.documentTypeId] = file);
@@ -296,9 +305,16 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
             ElevatedButton.icon(
               onPressed: _isActionInProgress ? null : _submitNewDocuments,
               icon: const Icon(Icons.cloud_upload_outlined),
-              label: const Text('Subir y Guardar Cambios'),
+              label: const Text('Enviar Documentos Seleccionados'),
               style: ElevatedButton.styleFrom(backgroundColor: AppConfig.primaryBlue, minimumSize: const Size(double.infinity, 54)),
             ),
+        ] else if (canEdit && missingRequirements.isEmpty) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Has cumplido con todos los requisitos.', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+            ),
+          ),
         ],
       ],
     );

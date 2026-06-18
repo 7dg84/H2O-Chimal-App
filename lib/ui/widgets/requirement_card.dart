@@ -59,6 +59,11 @@ class RequirementCard extends StatelessWidget {
             requirement.documentTypeName,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 4),
+          Text(
+            requirement.notes,
+            style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.normal),
+          ),
           const SizedBox(height: 16),
           InkWell(
             onTap: isUploading ? null : onPickFile,
