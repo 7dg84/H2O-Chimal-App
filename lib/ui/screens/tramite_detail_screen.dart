@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../core/config.dart';
+import '../../core/file_helper.dart';
 import '../../models/document_model.dart';
 import '../../models/tramite_model.dart';
+import '../../models/service_model.dart';
 import '../../providers/tramite_provider.dart';
+import '../../providers/service_provider.dart';
+import '../widgets/buttons.dart';
+import '../widgets/delete_dialog.dart';
+import '../widgets/requirement_card.dart';
 
 class TramiteDetailScreen extends StatefulWidget {
   final String tramiteId;
@@ -20,22 +25,47 @@ class TramiteDetailScreen extends StatefulWidget {
 
 class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   TramiteModel? _tramite;
+  ServiceModel? _service;
   bool _isLoading = true;
+  bool _isActionInProgress = false;
+  
+  // Almacena archivos seleccionados localmente antes de subirlos
+  final Map<String, File> _newFiles = {};
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _loadTramite());
+    Future.microtask(() => _loadData());
   }
 
-  Future<void> _loadTramite() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final tramite = await context.read<TramiteProvider>().getTramiteDetail(
-        widget.tramiteId);
+    try {
+      final tramite = await context.read<TramiteProvider>().getTramiteDetail(widget.tramiteId);
+      if (mounted && tramite != null) {
+        _tramite = tramite;
+        // Obtenemos los requisitos del servicio asociado
+        final service = await context.read<ServiceProvider>().getServiceDetail(tramite.service);
+        if (mounted) {
+          setState(() {
+            _service = service;
+            _isLoading = false;
+          });
+        }
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshTramite() async {
+    final tramite = await context.read<TramiteProvider>().getTramiteDetail(widget.tramiteId);
     if (mounted) {
       setState(() {
         _tramite = tramite;
-        _isLoading = false;
+        _newFiles.clear(); // Limpiar selección tras subir con éxito
       });
     }
   }
@@ -56,7 +86,7 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
           icon: const Icon(Icons.arrow_back, color: AppConfig.primaryBlue),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Gestión de Agua'),
+        title: const Text('Detalle de Solicitud'),
       ),
       body: Stack(
         children: [
@@ -71,12 +101,14 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
                 const SizedBox(height: 24),
                 _buildAdminNotesSection(),
                 const SizedBox(height: 24),
-                _buildActionsSection(),
+                _buildDocumentManagementSection(), // Integración directa de tarjetas
+                const SizedBox(height: 24),
+                _buildDangerZone(),
                 const SizedBox(height: 40),
               ],
             ),
           ),
-          if (_isLoading)
+          if (_isActionInProgress)
             Container(
               color: Colors.black26,
               child: const Center(child: CircularProgressIndicator()),
@@ -93,15 +125,9 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: const Border(
-          left: BorderSide(color: AppConfig.primaryBlue, width: 6),
-        ),
+        border: const Border(left: BorderSide(color: AppConfig.primaryBlue, width: 6)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -113,87 +139,40 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'FOLIO DEL TRÁMITE',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[600],
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  Text(
-                    '#T-${_tramite!.folio}',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppConfig.primaryBlue,
-                    ),
-                  ),
+                  Text('FOLIO DEL TRÁMITE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.1)),
+                  Text('#T-${_tramite!.folio}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppConfig.primaryBlue)),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.sync, size: 14, color: Colors.orange[800]),
-                    const SizedBox(width: 4),
-                    Text(
-                      _tramite!.statusText,
-                      style: TextStyle(
-                        color: Colors.orange[800],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildStatusBadge(),
             ],
           ),
           const SizedBox(height: 24),
-          Text(
-            'SERVICIO',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-              letterSpacing: 1.1,
-            ),
-          ),
-          Text(
-            _tramite!.serviceName,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          Text('SERVICIO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.1)),
+          Text(_tramite!.serviceName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
-          Text(
-            'FECHA DE SOLICITUD',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-              letterSpacing: 1.1,
-            ),
-          ),
+          Text('FECHA DE SOLICITUD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.1)),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 18,
-                  color: Colors.black87),
+              const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.black87),
               const SizedBox(width: 8),
-              Text(
-                DateFormat('dd \'de\' MMMM, yyyy', 'es').format(
-                    _tramite!.createdAt),
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w500),
-              ),
+              Text(DateFormat('dd \'de\' MMMM, yyyy', 'es').format(_tramite!.createdAt), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        children: [
+          Icon(Icons.sync, size: 14, color: Colors.orange[800]),
+          const SizedBox(width: 4),
+          Text(_tramite!.statusText, style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold, fontSize: 12)),
         ],
       ),
     );
@@ -203,18 +182,11 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Estado del Proceso',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('Estado del Proceso', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,113 +206,43 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
   Widget _buildTimelineStep(String label, TramiteStatus step) {
     bool isDone = _tramite!.status.index >= step.index;
     bool isCurrent = _tramite!.status == step;
-
     return Column(
       children: [
         Container(
-          width: 36,
-          height: 32,
+          width: 36, height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isDone ? AppConfig.primaryBlue : const Color(0xFFCBD5E1),
-            border: Border.all(
-                color: isDone ? AppConfig.primaryBlue : Colors.white, width: 2),
+            border: Border.all(color: isDone ? AppConfig.primaryBlue : Colors.white, width: 2),
           ),
-          child: isCurrent
-              ? const Icon(
-              Icons.radio_button_checked, size: 18, color: Colors.white)
-              : isDone
-              ? const Icon(Icons.check, size: 18, color: Colors.white)
-              : const Icon(Icons.more_horiz, size: 18, color: Colors.white),
+          child: isCurrent ? const Icon(Icons.radio_button_checked, size: 18, color: Colors.white) : isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : const Icon(Icons.more_horiz, size: 18, color: Colors.white),
         ),
         const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: isDone ? AppConfig.primaryBlue : Colors.grey[500],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDone ? AppConfig.primaryBlue : Colors.grey[500])),
       ],
     );
   }
 
   Widget _buildTimelineConnector(TramiteStatus stepBefore) {
     bool isDone = _tramite!.status.index > stepBefore.index;
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 20),
-        color: isDone ? AppConfig.primaryBlue : const Color(0xFFCBD5E1),
-      ),
-    );
+    return Expanded(child: Container(height: 2, margin: const EdgeInsets.only(bottom: 20), color: isDone ? AppConfig.primaryBlue : const Color(0xFFCBD5E1)));
   }
 
   Widget _buildAdminNotesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
-          children: [
-            Icon(Icons.chat_bubble_outline, color: AppConfig.primaryBlue),
-            SizedBox(width: 12),
-            Text(
-              'Notas del Administrador',
-              style: TextStyle(fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppConfig.primaryBlue),
-            ),
-          ],
-        ),
+        const Row(children: [Icon(Icons.chat_bubble_outline, color: AppConfig.primaryBlue), SizedBox(width: 12), Text('Notas del Administrador', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppConfig.primaryBlue))]),
         const SizedBox(height: 16),
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0F9FF),
-            borderRadius: BorderRadius.circular(12),
-            border: const Border(
-              left: BorderSide(color: AppConfig.primaryBlue, width: 4),
-            ),
-          ),
+          width: double.infinity, padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(12), border: const Border(left: BorderSide(color: AppConfig.primaryBlue, width: 4))),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Administración H2O',
-                    style: TextStyle(fontWeight: FontWeight.bold,
-                        color: AppConfig.primaryBlue),
-                  ),
-                  Text(
-                    'Actualizado',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Administración H2O', style: TextStyle(fontWeight: FontWeight.bold, color: AppConfig.primaryBlue)), Text('Actualizado', style: TextStyle(fontSize: 12, color: Colors.grey[600]))]),
               const SizedBox(height: 12),
-              Text(
-                _tramite!.notes == null || _tramite!.notes!.isEmpty
-                    ? 'No hay notas adicionales del administrador en este momento.'
-                    : _tramite!.notes!,
-                style: const TextStyle(
-                    fontSize: 15, height: 1.5, color: Colors.black87),
-              ),
-              if (_tramite!.documents != null && _tramite!.documents!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text('Documentos adjuntos:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _tramite!.documents!
-                      .map((document) => _buildDocument(document))
-                      .toList(),
-                ),
-              ],
+              Text(_tramite!.notes ?? 'No hay notas adicionales del administrador.', style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87)),
             ],
           ),
         ),
@@ -348,290 +250,133 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
     );
   }
 
-  Widget _buildActionsSection() {
-    // Solo permitir acciones si el trámite no está completado
-    bool canEdit = _tramite!.status != TramiteStatus.completado;
+  Widget _buildDocumentManagementSection() {
+    bool canEdit = _tramite!.status == TramiteStatus.creado;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Documentación del Trámite', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        
+        // Documentos actuales (Revisión/Descarga)
+        if (_tramite!.documents != null && _tramite!.documents!.isNotEmpty) ...[
+          const Text('Documentos en revisión:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 12),
+          ..._tramite!.documents!.map((doc) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined, color: AppConfig.primaryBlue),
+              title: Text(doc.name, style: const TextStyle(fontSize: 14, decoration: TextDecoration.underline)),
+              onTap: () => _downloadDocument(doc.id),
+              trailing: canEdit ? IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => _confirmDeleteDocument(doc.id),
+              ) : null,
+            ),
+          )),
+          const SizedBox(height: 24),
+        ],
+
+        // Subida de nuevos documentos (Tarjetas integradas)
+        if (canEdit && _service != null) ...[
+          const Text('Añadir o actualizar documentación:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 16),
+          ..._service!.requirements.map((req) => RequirementCard(
+            requirement: req,
+            pickedFile: _newFiles[req.documentTypeId],
+            onPickFile: () async {
+              final file = await FileHelper.pickDocument(context);
+              if (file != null) setState(() => _newFiles[req.documentTypeId] = file);
+            },
+          )),
+          const SizedBox(height: 16),
+          if (_newFiles.isNotEmpty)
+            ElevatedButton.icon(
+              onPressed: _isActionInProgress ? null : _submitNewDocuments,
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: const Text('Subir y Guardar Cambios'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppConfig.primaryBlue, minimumSize: const Size(double.infinity, 54)),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDangerZone() {
+    if (_tramite!.status != TramiteStatus.creado) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Acciones Disponibles',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child:
-            ElevatedButton(
-              onPressed: canEdit ? () => _confirmCancelTramite() : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppConfig.primaryBlue,
-                side: const BorderSide(color: AppConfig.primaryBlue),
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: const Text('Editar Documentos'),
-            ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(child:
-            OutlinedButton.icon(
-              onPressed: canEdit ? () => _confirmCancelTramite() : null,
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: const Text('Eliminar Reporte', style: TextStyle(color: Colors.red)),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                side: const BorderSide(color: Colors.red),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-            ),
-              const SizedBox(height: 40),
-            // Expanded(
-            //   child: OutlinedButton.icon(
-            //     onPressed: canEdit ? () => _showEditDocumentsDialog() : null,
-            //     icon: const Icon(Icons.edit_document),
-            //     label: const Text('Editar Documentos'),
-            //     style: OutlinedButton.styleFrom(
-            //       padding: const EdgeInsets.symmetric(vertical: 12),
-            //       side: const BorderSide(color: AppConfig.primaryBlue),
-            //     ),
-            //   ),
-            // ),
-            // const SizedBox(width: 12),
-
-            // Expanded(
-            //   child: OutlinedButton.icon(
-            //     onPressed: canEdit ? () => _confirmCancelTramite() : null,
-            //     icon: const Icon(Icons.cancel_outlined),
-            //     label: const Text('Cancelar Trámite'),
-            //     style: OutlinedButton.styleFrom(
-            //       padding: const EdgeInsets.symmetric(vertical: 12),
-            //       foregroundColor: Colors.red,
-            //       side: const BorderSide(color: Colors.red),
-            //     ),
-            //   ),
-            // ),
-          ],
+        const Divider(height: 48),
+        const Text('Zona de Peligro', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+        const SizedBox(height: 12),
+        DeleteButton(
+          onPressed: _confirmCancelTramite,
+          label: 'Cancelar toda la solicitud',
         ),
       ],
     );
   }
 
-  void _showEditDocumentsDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: const EdgeInsets.all(24),
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Gestionar Documentos',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  if (_tramite!.documents == null || _tramite!.documents!.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(child: Text('No hay documentos subidos.')),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _tramite!.documents!.length,
-                        itemBuilder: (context, index) {
-                          final doc = _tramite!.documents![index];
-                          return ListTile(
-                            leading: const Icon(Icons.description, color: AppConfig.primaryBlue),
-                            title: Text(doc.filename, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _deleteDocument(doc.id, setModalState),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _uploadNewDocument(setModalState),
-                    icon: const Icon(Icons.add_a_photo),
-                    label: const Text('Subir Nuevo Documento'),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _deleteDocument(String documentId, StateSetter setModalState) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Eliminar documento?'),
-        content: const Text('Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final success = await context.read<TramiteProvider>().deleteDocument(documentId);
-      if (success) {
-        await _loadTramite();
-        setModalState(() {});
-      }
-    }
-  }
-
-  Future<void> _uploadNewDocument(StateSetter setModalState) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      // Nota: Aquí necesitaríamos el documentTypeId. Para este ejemplo rápido, 
-      // usaremos uno genérico o pediremos al usuario que lo identifique.
-      // Por ahora, asumiremos que el backend acepta un ID por defecto para adjuntos adicionales.
-      
-      final success = await context.read<TramiteProvider>().uploadAdditionalDocument(
-        _tramite!.id, 
-        'default', // Idealmente obtener de los requisitos del servicio
-        File(image.path)
-      );
-
-      if (success) {
-        await _loadTramite();
-        setModalState(() {});
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Documento subido con éxito')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _confirmCancelTramite() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Cancelar Trámite?'),
-        content: const Text('Se eliminará tu solicitud. Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No, mantener')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Sí, cancelar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      final success = await context.read<TramiteProvider>().deleteTramite(_tramite!.id);
-      if (success && mounted) {
-        Navigator.pop(context); // Volver a la lista
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trámite cancelado con éxito')),
-        );
-      }
-    }
-  }
-
-  Widget _buildDocument(TramiteDocumentModel document) {
-    return InkWell(
-      onTap: () => _downloadDocument(document.id),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-                Icons.attachment, size: 16, color: AppConfig.primaryBlue),
-            const SizedBox(width: 8),
-            Text(
-                document.filename,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  decoration: TextDecoration.underline,
-                )
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _downloadDocument(String documentId) async {
+  Future<void> _submitNewDocuments() async {
+    setState(() => _isActionInProgress = true);
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preparando descarga...'),
-            duration: Duration(seconds: 1)),
-      );
-
-      final docDetail = await context.read<TramiteProvider>().getDocumentDetail(
-          documentId);
-
-      if (docDetail != null && docDetail.presignedUrl != null) {
-        final Uri url = Uri.parse(docDetail.presignedUrl!);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          throw 'No se pudo abrir el enlace de descarga';
-        }
-      } else {
-        throw 'No se encontró la URL del documento';
+      for (var entry in _newFiles.entries) {
+        await context.read<TramiteProvider>().uploadAdditionalDocument(
+          _tramite!.id, 
+          entry.key, 
+          entry.value
+        );
+      }
+      await _refreshTramite();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Documentos actualizados con éxito')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al descargar: $e'),
-              backgroundColor: Colors.red),
-        );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al subir documentos: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isActionInProgress = false);
+    }
+  }
+
+  void _confirmDeleteDocument(String id) {
+    showDeleteDialog(
+      context: context,
+      title: '¿Eliminar documento?',
+      onConfirm: () async {
+        final ok = await context.read<TramiteProvider>().deleteDocument(id);
+        if (ok) await _refreshTramite();
+        return ok;
       }
+    );
+  }
+
+  void _confirmCancelTramite() {
+    showDeleteDialog(
+      context: context,
+      title: '¿Cancelar Trámite?',
+      message: 'Esta acción eliminará permanentemente tu solicitud.',
+      successMessage: 'Trámite cancelado',
+      onConfirm: () async {
+        final ok = await context.read<TramiteProvider>().deleteTramite(_tramite!.id);
+        if (ok && mounted) Navigator.pop(context);
+        return ok;
+      }
+    );
+  }
+
+  Future<void> _downloadDocument(String id) async {
+    try {
+      final docDetail = await context.read<TramiteProvider>().getDocumentDetail(id);
+      if (docDetail?.presignedUrl != null) {
+        final Uri url = Uri.parse(docDetail!.presignedUrl!);
+        if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Error al descargar: $e');
     }
   }
 }

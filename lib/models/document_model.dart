@@ -1,16 +1,19 @@
 class TramiteDocumentModel {
   final String id;
   final String filename;
+  final String name;
 
   TramiteDocumentModel({
     required this.id,
     required this.filename,
-});
+    required this.name,
+  });
 
   factory TramiteDocumentModel.fromJson(Map<String, dynamic> json) {
     return TramiteDocumentModel(
       id: json['id'],
       filename: json['filename'],
+      name: json['name'],
     );
   }
 

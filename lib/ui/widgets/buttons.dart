@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import '../../core/config.dart';
 
 class EditButton extends StatelessWidget {
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String label;
 
   const EditButton({
     super.key,
-    required this.onPressed,
+    this.onPressed,
     this.label = 'Editar',
   });
 
@@ -28,12 +28,12 @@ class EditButton extends StatelessWidget {
 }
 
 class DeleteButton extends StatelessWidget {
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String label;
 
   const DeleteButton({
     super.key,
-    required this.onPressed,
+    this.onPressed,
     this.label = 'Eliminar',
   });
 
