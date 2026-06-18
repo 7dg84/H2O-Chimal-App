@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config.dart';
 import '../../core/file_helper.dart';
-import '../../models/document_model.dart';
 import '../../models/tramite_model.dart';
 import '../../models/service_model.dart';
 import '../../providers/tramite_provider.dart';
@@ -127,7 +126,7 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
         borderRadius: BorderRadius.circular(16),
         border: const Border(left: BorderSide(color: AppConfig.primaryBlue, width: 6)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
