@@ -1,3 +1,4 @@
+import 'package:app/ui/widgets/map_picker_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -55,7 +56,7 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
     
     LatLng? result = await showDialog<LatLng>(
       context: context,
-      builder: (context) => _MapPickerDialog(
+      builder: (context) => MapPickerDialog(
         initialPoint: LatLng(_latitude, _longitude),
       ),
     );
@@ -245,76 +246,76 @@ class _ReportEditScreenState extends State<ReportEditScreen> {
 }
 
 // Reutilizamos el selector de mapa (debería moverse a un archivo común idealmente)
-class _MapPickerDialog extends StatefulWidget {
-  final LatLng initialPoint;
-  const _MapPickerDialog({required this.initialPoint});
-
-  @override
-  State<_MapPickerDialog> createState() => __MapPickerDialogState();
-}
-
-class __MapPickerDialogState extends State<_MapPickerDialog> {
-  late LatLng _selectedPoint;
-  final MapController _mapController = MapController();
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedPoint = widget.initialPoint;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Container(
-        height: 500,
-        width: double.infinity,
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _selectedPoint,
-                    initialZoom: 15,
-                    onTap: (_, point) => setState(() => _selectedPoint = point),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: AppConfig.urlTemplate,
-                      userAgentPackageName: AppConfig.userAgentPackageName,
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: _selectedPoint,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.location_on, color: Colors.red, size: 40),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Row(
-                children: [
-                  Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar"))),
-                  const SizedBox(width: 10),
-                  Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(context, _selectedPoint), child: const Text("Confirmar"))),
-                ],
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-}
+// class _MapPickerDialog extends StatefulWidget {
+//   final LatLng initialPoint;
+//   const _MapPickerDialog({required this.initialPoint});
+//
+//   @override
+//   State<_MapPickerDialog> createState() => __MapPickerDialogState();
+// }
+//
+// class __MapPickerDialogState extends State<_MapPickerDialog> {
+//   late LatLng _selectedPoint;
+//   final MapController _mapController = MapController();
+//
+//   @override
+//   void initState() {
+//     super.initState();
+//     _selectedPoint = widget.initialPoint;
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Dialog(
+//       insetPadding: const EdgeInsets.all(10),
+//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+//       child: Container(
+//         height: 500,
+//         width: double.infinity,
+//         child: Column(
+//           children: [
+//             Expanded(
+//               child: ClipRRect(
+//                 borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+//                 child: FlutterMap(
+//                   mapController: _mapController,
+//                   options: MapOptions(
+//                     initialCenter: _selectedPoint,
+//                     initialZoom: 15,
+//                     onTap: (_, point) => setState(() => _selectedPoint = point),
+//                   ),
+//                   children: [
+//                     TileLayer(
+//                       urlTemplate: AppConfig.urlTemplate,
+//                       userAgentPackageName: AppConfig.userAgentPackageName,
+//                     ),
+//                     MarkerLayer(
+//                       markers: [
+//                         Marker(
+//                           point: _selectedPoint,
+//                           width: 40,
+//                           height: 40,
+//                           child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+//                         ),
+//                       ],
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ),
+//             Padding(
+//               padding: const EdgeInsets.all(15.0),
+//               child: Row(
+//                 children: [
+//                   Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar"))),
+//                   const SizedBox(width: 10),
+//                   Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(context, _selectedPoint), child: const Text("Confirmar"))),
+//                 ],
+//               ),
+//             )
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
