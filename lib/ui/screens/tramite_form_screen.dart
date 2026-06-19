@@ -54,7 +54,10 @@ class _TramiteFormScreenState extends State<TramiteFormScreen> {
           context: context, 
           folio: tramite.folio, 
           title: '¡Solicitud Enviada!', 
-          message: 'Tu tramite ha sido registrado con el folio:'
+          message: 'Tu tramite ha sido registrado con el folio:',
+          onConfirm: () => {
+            Navigator.pushReplacementNamed(context, '/tramite-detail', arguments: tramite.id)
+          }
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,7 +122,9 @@ class _TramiteFormScreenState extends State<TramiteFormScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                ...widget.service.requirements.map((req) => RequirementCard(
+                ...widget.service.requirements.where((req) => req.isRequired)
+                    .map((req)
+                => RequirementCard(
                   requirement: req,
                   pickedFile: _pickedFiles[req.documentTypeId],
                   onPickFile: () => _pickFile(req.documentTypeId),

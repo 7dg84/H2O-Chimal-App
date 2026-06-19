@@ -79,7 +79,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       onConfirm: () async {
         // Retornamos el resultado de la operación
         return await context.read<ReportProvider>().deleteReport(
-          widget.reportId,
+          _report!.id,
         );
       },
     );

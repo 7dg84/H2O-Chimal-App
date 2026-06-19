@@ -86,6 +86,22 @@ class _StarRatingWidgetState extends State<StarRatingWidget> {
             }),
           ),
           if (!isReadOnly) ...[
+          //   Comentario
+            const SizedBox(height: 16),
+            TextFormField(
+              // controller: _,
+              decoration: const InputDecoration(
+                hintText: 'Excelente!',
+                prefixIcon: Icon(Icons.send_outlined),
+              ),
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Escribe que te parecio la experiencia';
+                return null;
+              },
+            ),
+          ],
+          if (!isReadOnly) ...[
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

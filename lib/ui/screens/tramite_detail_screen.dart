@@ -638,11 +638,9 @@ class _TramiteDetailScreenState extends State<TramiteDetailScreen> {
       message: 'Esta acción eliminará permanentemente tu solicitud.',
       successMessage: 'Trámite cancelado',
       onConfirm: () async {
-        final ok = await context.read<TramiteProvider>().deleteTramite(
+        return await context.read<TramiteProvider>().deleteTramite(
           _tramite!.id,
         );
-        if (ok && mounted) Navigator.pop(context);
-        return ok;
       },
     );
   }
