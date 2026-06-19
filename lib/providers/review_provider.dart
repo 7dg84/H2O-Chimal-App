@@ -14,7 +14,7 @@ class ReviewProvider with ChangeNotifier {
     try {
       return await _reviewService.getReviewByReport(reportId);
     } catch (e) {
-      print("Error fetching review: $e");
+      debugPrint("Error fetching review: $e");
       return Future.error(e);
     } finally {
       _isLoading = false;

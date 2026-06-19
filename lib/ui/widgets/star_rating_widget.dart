@@ -21,20 +21,31 @@ class _StarRatingWidgetState extends State<StarRatingWidget> {
   int _currentRating = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _currentRating = widget.initialRating;
+  }
+
+  @override
+  void didUpdateWidget(covariant StarRatingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialRating != oldWidget.initialRating) {
+      setState(() {
+        _currentRating = widget.initialRating;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool isReadOnly = widget.initialRating > 0;
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppConfig.cardBorder),
-        // boxShadow: [
-        //   BoxShadow(
-        //     color: Colors.black.withOpacity(0.05),
-        //     blurRadius: 10,
-        //     offset: const Offset(0, 4),
-        //   ),
-        // ],
+        border: Border.all(color: AppConfig.cardBorder),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -54,13 +65,15 @@ class _StarRatingWidgetState extends State<StarRatingWidget> {
             children: List.generate(5, (index) {
               final starValue = index + 1;
               final isSelected = starValue <= _currentRating;
-              
+
               return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _currentRating = starValue;
-                  });
-                },
+                onTap: isReadOnly
+                    ? null
+                    : () {
+                        setState(() {
+                          _currentRating = starValue;
+                        });
+                      },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: Icon(
@@ -72,28 +85,30 @@ class _StarRatingWidgetState extends State<StarRatingWidget> {
               );
             }),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _currentRating > 0 
-                ? () => widget.onSubmit(_currentRating) 
-                : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConfig.primaryBlue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+          if (!isReadOnly) ...[
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _currentRating > 0
+                    ? () => widget.onSubmit(_currentRating)
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConfig.primaryBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
                 ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Enviar calificación',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: const Text(
+                  'Enviar calificación',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

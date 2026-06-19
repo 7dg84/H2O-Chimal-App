@@ -1,3 +1,4 @@
+import 'package:app/models/review_model.dart';
 import 'package:app/providers/review_provider.dart';
 import 'package:app/ui/widgets/buttons.dart';
 import 'package:app/ui/widgets/delete_dialog.dart';
@@ -25,6 +26,7 @@ class ReportDetailScreen extends StatefulWidget {
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
   ReportModel? _report;
   List<MediaModel> _mediaList = [];
+  ReviewModel? _review;
   bool _isLoading = true;
 
   @override
@@ -35,14 +37,28 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   Future<void> _loadReport() async {
     final reportProvider = context.read<ReportProvider>();
+    final reviewProvider = context.read<ReviewProvider>();
+    
     final report = await reportProvider.getReportDetail(widget.reportId);
 
     if (report != null) {
       final media = await reportProvider.getReportMedia(report.media);
+      
+      ReviewModel? review;
+      if (report.status == ReportStatus.resuelto || report.status == ReportStatus.cerrado) {
+        try {
+          review = await reviewProvider.getReviewByReport(report.id);
+          debugPrint('Review found: $review');
+        } catch (e) {
+          debugPrint('No review found or error: $e');
+        }
+      }
+
       if (mounted) {
         setState(() {
           _report = report;
           _mediaList = media;
+          _review = review;
           _isLoading = false;
         });
       }
@@ -119,7 +135,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: _report!.statusColor.withValues(alpha: 0.1),
+                    color: _report!.statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -268,25 +284,30 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             if (_report!.status == ReportStatus.resuelto ||
                 _report!.status == ReportStatus.cerrado) ...[
               StarRatingWidget(
-                description: 'Califica tu experiencia con el reporte',
+                initialRating: _review?.value ?? 0,
+                description: _review != null 
+                    ? 'Tu calificación del reporte' 
+                    : 'Califica tu experiencia con el reporte',
                 onSubmit: (rating) async {
                   final reviewProvider = context.read<ReviewProvider>();
-                  // if (await reviewProvider.getReviewByReport(_report!.id) != null) return;
                   try {
                     final review = await reviewProvider.createReview(
                       report: _report!.id,
                       value: rating,
                     );
-                  } on DioException catch ( e) {
+                    setState(() {
+                      _review = review;
+                    });
+                  } on DioException catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(e.response!.data['report'][0] ?? 'Error al crear la calificación'),
+                        content: Text(e.response?.data['report']?[0] ?? 'Error al crear la calificación'),
                       ),
                     );
                   }
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
             ],
           ],
         ),

@@ -9,8 +9,13 @@ class ReviewService {
   Future<ReviewModel?> getReviewByReport(String reportId) async {
     try {
       final response = await _apiService.get('/reviews/', queryParameters: {'report': reportId});
-      if (response.data != null || response.statusCode==200) {
-        return ReviewModel.fromJson(response.data);
+      
+      // La API devuelve un objeto con la estructura { "results": [...] }
+      if (response.data != null && response.data['results'] is List) {
+        final List results = response.data['results'];
+        if (results.isNotEmpty) {
+          return ReviewModel.fromJson(results.first);
+        }
       }
       return null;
     } catch (e) {
