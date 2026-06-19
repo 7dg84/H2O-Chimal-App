@@ -23,6 +23,23 @@ class ReviewService {
     }
   }
 
+  Future<ReviewModel?> getReviewByTramite(String tramiteId) async {
+    try {
+      final response = await _apiService.get('/reviews/', queryParameters: {'tramite': tramiteId});
+
+      // La API devuelve un objeto con la estructura { "results": [...] }
+      if (response.data != null && response.data['results'] is List) {
+        final List results = response.data['results'];
+        if (results.isNotEmpty) {
+          return ReviewModel.fromJson(results.first);
+        }
+      }
+      return null;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<ReviewModel> createReview({
     String? tramite,
     String? report,

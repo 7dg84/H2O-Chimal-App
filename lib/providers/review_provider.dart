@@ -22,6 +22,20 @@ class ReviewProvider with ChangeNotifier {
     }
   }
 
+  Future<ReviewModel?> getReviewByTramite(String tramiteId) async {
+    _isLoading = true;
+    Future.microtask(() => notifyListeners());
+    try {
+      return await _reviewService.getReviewByTramite(tramiteId);
+    } catch (e) {
+      debugPrint("Error fetching review: $e");
+      return Future.error(e);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<ReviewModel> createReview({
     String? tramite,
     String? report,
